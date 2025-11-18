@@ -12,7 +12,7 @@ import {
 } from './utils/sessionParsing';
 import { projectTone } from './utils/projectTone';
 
-const MAX_GAP_MS = 20 * 60 * 1000; // cap inactivity gaps at 20 minutes
+const MAX_GAP_MS = 10 * 60 * 1000; // cap inactivity gaps at 10 minutes
 
 const rawSessionFiles = ref([]);
 
