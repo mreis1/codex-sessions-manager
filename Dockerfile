@@ -12,4 +12,4 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 EXPOSE 5172
-CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5172"]
+CMD ["sh", "-c", "npx vite -- --host ${VITE_HOST:-0.0.0.0} --port ${VITE_PORT:-5172}"]
