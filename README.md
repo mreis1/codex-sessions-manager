@@ -78,6 +78,21 @@ This section covers deploying on a Windows machine that uses WSL2 for Codex, wit
 4) **Open the app:**  
    In Windows, browse to `http://localhost:5172`.
 
+### Running in Docker (MacOS)
+
+```
+# nav to project
+cd to/this/project
+
+# build image `codex-sessions`
+docker build -t codex-sessions .
+
+# start container from `codex-sessions` image
+# codex sessions are stored in `~/.codex/sessions`
+docker run --rm -p 5172:5172 -e VITE_HOST=0.0.0.0 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions codex-sessions
+```
+
+
 ### Using Codex with the app
 - Run Codex directly in WSL (`codex ...`) so it writes to `/home/<user>/.codex/sessions/`.
 - Click **Refresh** in the app header to pull new sessions without restarting the dev server.
@@ -96,3 +111,10 @@ Serve the `dist/` directory with your preferred static server (e.g., `pnpm run p
 - **No sessions visible:** Confirm the volume mount path and `SESSIONS_ROOT_PATH` match `/home/<user>/.codex/sessions`. Ensure Codex has created session files.
 - **Port conflicts:** Change the `-p` mapping and `--port` flag consistently.
 - **Permissions issues:** Verify your WSL user owns the session directory; use `chmod -R` or `chown` inside WSL if needed.
+
+### App Preview
+#### Session List
+![preview00.png](doc/preview00.png)
+
+#### Session Discussion
+![preview01.png](doc/preview01.png)
