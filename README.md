@@ -89,7 +89,7 @@ docker build -t codex-sessions .
 
 # start container from `codex-sessions` image
 # codex sessions are stored in `~/.codex/sessions`
-docker run --name codex-sessions --rm -p 5172:5172 -e VITE_HOST=0.0.0.0 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions codex-sessions
+docker run --name codex-sessions --rm -p 5172:5172 -e VITE_HOST=0.0.0.0 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions -d codex-sessions
 
 ```
 

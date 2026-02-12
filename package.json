@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host --port 5172",
     "docker:build": "docker build -t codex-sessions .",
-    "docker:unix:run": "docker run --name codex-sessions --rm -p 9172:9172 -e VITE_PORT=9172 -v ~/.codex/sessions:/app/sessions codex-sessions"
+    "docker:unix:run": "docker run --name codex-sessions --rm -p 9172:9172 -e VITE_PORT=9172 -v ~/.codex/sessions:/app/sessions -d codex-sessions"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
