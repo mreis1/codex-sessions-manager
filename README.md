@@ -78,7 +78,7 @@ This section covers deploying on a Windows machine that uses WSL2 for Codex, wit
 4) **Open the app:**  
    In Windows, browse to `http://localhost:5172`.
 
-### Running in Docker (MacOS)
+### Running in Docker (Unix [MacOS - Linux])
 
 ```
 # nav to project
@@ -89,10 +89,7 @@ docker build -t codex-sessions .
 
 # start container from `codex-sessions` image
 # codex sessions are stored in `~/.codex/sessions`
-docker run --rm -p 5172:5172 -e VITE_HOST=127.0.0.1 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions codex-sessions
-
-# (more secure) export 5172 but keep it bound to localhost 
-docker run --rm -p 127.0.0.1:5172:5172 -e VITE_HOST=0.0.0.0 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions codex-sessions
+docker run --name codex-sessions --rm -p 5172:5172 -e VITE_HOST=0.0.0.0 -e VITE_PORT=5172 -v ~/.codex/sessions:/app/sessions codex-sessions
 
 ```
 
