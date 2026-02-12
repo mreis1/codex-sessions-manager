@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import ChatDialog from './components/ChatDialog.vue';
 import SessionCard from './components/SessionCard.vue';
 import SessionHeader from './components/SessionHeader.vue';
@@ -28,8 +28,8 @@ const sessionsList = computed(() => {
       unique.set(key, s);
       return;
     }
-    const currentTime = new Date(current.createdAt || 0).getTime();
-    const newTime = new Date(s.createdAt || 0).getTime();
+    const currentTime = new Date(current.lastMessageAt || current.createdAt || 0).getTime();
+    const newTime = new Date(s.lastMessageAt || s.createdAt || 0).getTime();
     if (newTime > currentTime) {
       unique.set(key, s);
     }
@@ -37,13 +37,32 @@ const sessionsList = computed(() => {
   return Array.from(unique.values());
 });
 
-const groupBy = ref('project');
-
 const groupOptions = [
   { title: 'By project', value: 'project' },
-  { title: 'By date', value: 'date' },
+  { title: 'By creation date', value: 'created' },
+  { title: 'By last msg', value: 'last' },
   { title: 'No grouping', value: 'none' },
 ];
+
+const GROUP_BY_STORAGE_KEY = 'codex.sessions.groupBy';
+const groupBy = ref('project');
+
+try {
+  const stored = localStorage.getItem(GROUP_BY_STORAGE_KEY);
+  if (stored && groupOptions.some((option) => option.value === stored)) {
+    groupBy.value = stored;
+  }
+} catch (err) {
+  console.warn('Failed to read groupBy from localStorage', err);
+}
+
+watch(groupBy, (value) => {
+  try {
+    localStorage.setItem(GROUP_BY_STORAGE_KEY, value);
+  } catch (err) {
+    console.warn('Failed to persist groupBy to localStorage', err);
+  }
+});
 
 const formatDay = (value) => {
   if (!value) return 'Unknown date';
@@ -64,16 +83,20 @@ const groupedSessions = computed(() => {
 
   const map = new Map();
   list.forEach((session) => {
-    const key =
-      groupBy.value === 'project'
-        ? session.projectName || 'Unknown project'
-        : formatDay(session.createdAt);
+    let key;
+    if (groupBy.value === 'project') {
+      key = session.projectName || 'Unknown project';
+    } else if (groupBy.value === 'last') {
+      key = formatDay(session.lastMessageAt || session.createdAt);
+    } else {
+      key = formatDay(session.createdAt);
+    }
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(session);
   });
 
   let sorted;
-  if (groupBy.value === 'date') {
+  if (groupBy.value === 'created' || groupBy.value === 'last') {
     sorted = Array.from(map.entries()).sort((a, b) =>
       new Date(b[0]).getTime() - new Date(a[0]).getTime(),
     );
