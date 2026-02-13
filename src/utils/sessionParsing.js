@@ -154,7 +154,11 @@ const parseSingleSession = ({ path, raw }) => {
 
   const cwd = first?.payload?.cwd || '';
   const cwdParts = cwd.split('/').filter(Boolean);
-  const projectName = cwdParts[cwdParts.length - 1] || 'Unknown project';
+  let projectName = cwdParts[cwdParts.length - 1]
+  if (projectName === 'src') {
+    projectName = [(cwdParts[cwdParts.length - 2] ?? '') , projectName].filter((v) => v !== '').join('/');
+  }
+  projectName ??= 'Unknown project';
 
   return {
     id: path,

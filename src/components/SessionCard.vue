@@ -14,11 +14,12 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['open', 'copy-resume', 'copy-remove']);
+const emit = defineEmits(['open', 'copy-resume', 'delete-session', 'copy-cwd']);
 
 const handleOpen = () => emit('open', props.session);
 const handleCopyResume = () => emit('copy-resume', props.session);
-const handleCopyRemove = () => emit('copy-remove', props.session);
+const handleDeleteSession = () => emit('delete-session', props.session);
+const handleCopyCwd = () => emit('copy-cwd', props.session);
 </script>
 
 <template>
@@ -70,6 +71,24 @@ const handleCopyRemove = () => emit('copy-remove', props.session);
           </div>
         </div>
       </div>
+
+      <div class="d-flex align-center mt-3">
+        <v-icon icon="mdi-folder-marker" color="primary" size="18" class="mr-2"></v-icon>
+        <div class="text-caption text-medium-emphasis mr-2">Path</div>
+        <div class="text-body-2 path-line mr-2" :title="session.cwd || '-'">
+          {{ session.cwd }}
+        </div>
+        <v-btn
+          icon
+          size="x-small"
+          variant="text"
+          color="primary"
+          title="Copy path to clipboard"
+          @click="handleCopyCwd"
+        >
+          <v-icon size="16" icon="mdi-content-copy"></v-icon>
+        </v-btn>
+      </div>
     </v-card-item>
 
     <v-divider />
@@ -92,11 +111,11 @@ const handleCopyRemove = () => emit('copy-remove', props.session);
           variant="flat"
           size="small"
           class="ml-2"
-          title="Copy to clipboard"
-          @click="handleCopyRemove"
+          title="Delete session"
+          @click="handleDeleteSession"
         >
           <v-icon size="16" class="mr-1" icon="mdi-delete-outline"></v-icon>
-          Remove cmd
+          Delete
         </v-btn>
         <v-spacer />
         <v-btn color="primary" variant="flat" size="small" @click="handleOpen">
@@ -114,6 +133,11 @@ const handleCopyRemove = () => emit('copy-remove', props.session);
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.path-line {
+  overflow: hidden;
+  word-break: break-all;
 }
 
 .card-shaded {

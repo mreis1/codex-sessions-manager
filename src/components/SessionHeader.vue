@@ -18,9 +18,37 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  showOnlyEmpty: {
+    type: Boolean,
+    default: false,
+  },
+  cwdFilter: {
+    type: String,
+    default: '',
+  },
+  cwdFilterRegex: {
+    type: Boolean,
+    default: false,
+  },
+  emptySessionsCount: {
+    type: Number,
+    default: 0,
+  },
+  clearingEmpty: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['update:groupBy', 'update:showEmpty', 'refresh']);
+const emit = defineEmits([
+  'update:groupBy',
+  'update:showEmpty',
+  'update:showOnlyEmpty',
+  'update:cwdFilter',
+  'update:cwdFilterRegex',
+  'refresh',
+  'clear-empty',
+]);
 
 const groupModel = computed({
   get: () => props.groupBy,
@@ -30,6 +58,21 @@ const groupModel = computed({
 const showEmptyModel = computed({
   get: () => props.showEmpty,
   set: (value) => emit('update:showEmpty', value),
+});
+
+const showOnlyEmptyModel = computed({
+  get: () => props.showOnlyEmpty,
+  set: (value) => emit('update:showOnlyEmpty', value),
+});
+
+const cwdFilterModel = computed({
+  get: () => props.cwdFilter,
+  set: (value) => emit('update:cwdFilter', value),
+});
+
+const cwdFilterRegexModel = computed({
+  get: () => props.cwdFilterRegex,
+  set: (value) => emit('update:cwdFilterRegex', value),
 });
 </script>
 
@@ -42,6 +85,22 @@ const showEmptyModel = computed({
       </p>
     </div>
     <div class="d-flex align-center gap-3 flex-wrap">
+      <v-text-field
+        v-model="cwdFilterModel"
+        density="compact"
+        hide-details
+        clearable
+        variant="outlined"
+        label="Filter by cwd"
+        placeholder="e.g. codex-sessions-manager"
+        class="cwd-filter"
+      />
+      <v-checkbox
+        v-model="cwdFilterRegexModel"
+        density="compact"
+        hide-details
+        label="Regex"
+      />
       <v-btn-toggle
         v-model="groupModel"
         divided
@@ -60,13 +119,35 @@ const showEmptyModel = computed({
       <v-chip color="primary" variant="flat" class="text-body-2">
         {{ sessionsCount }} sessions
       </v-chip>
-      <v-checkbox
-        v-model="showEmptyModel"
-        density="compact"
-        hide-details
-        label="Show empty sessions"
+      <span class="flex flex-col">
+
+        <v-checkbox
+            v-model="showEmptyModel"
+            density="compact"
+            hide-details
+            label="Show empty sessions"
+            class="ml-2"
+        />
+        <v-checkbox
+            v-model="showOnlyEmptyModel"
+            density="compact"
+            hide-details
+            label="Show ONLY empty sessions"
+            class="ml-2"
+        />
+      </span>
+      <v-btn
+        color="error"
+        variant="flat"
+        size="large"
+        :disabled="!emptySessionsCount || clearingEmpty"
+        :loading="clearingEmpty"
         class="ml-2"
-      />
+        @click="emit('clear-empty')"
+      >
+        <v-icon size="18" class="mr-1" icon="mdi-broom"></v-icon>
+        Clear empty ({{ emptySessionsCount }})
+      </v-btn>
       <v-btn
         color="secondary"
         variant="flat"
@@ -96,6 +177,10 @@ const showEmptyModel = computed({
 
 .group-toggle {
   min-width: 260px;
+}
+
+.cwd-filter {
+  min-width: 280px;
 }
 
 .refresh-btn {

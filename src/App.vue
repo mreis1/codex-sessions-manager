@@ -3,18 +3,45 @@ import { computed, ref, watch } from 'vue';
 import ChatDialog from './components/ChatDialog.vue';
 import SessionCard from './components/SessionCard.vue';
 import SessionHeader from './components/SessionHeader.vue';
-import { loadSessions } from './utils/sessionApi';
+import { deleteSessionFiles, loadSessions } from './utils/sessionApi';
 import { NO_REQUEST_TEXT, formatDate, formatDuration, parseSessions } from './utils/sessionParsing';
 import { projectTone } from './utils/projectTone';
 
 const rawSessionFiles = ref([]);
+const clearingEmpty = ref(false);
+const deletingSession = ref(false);
 
 const showEmpty = ref(false);
+const showOnlyEmpty = ref(false);
+const cwdFilter = ref('');
+const cwdFilterRegex = ref(false);
+
+const parsedSessions = computed(() => parseSessions(rawSessionFiles.value));
+const emptySessions = computed(() =>
+  parsedSessions.value.filter((session) => session.firstRequest === NO_REQUEST_TEXT),
+);
+const emptySessionsCount = computed(() => emptySessions.value.length);
 
 const sessions = computed(() => {
-  let list = parseSessions(rawSessionFiles.value);
-  if (!showEmpty.value) {
+  let list = parsedSessions.value;
+  if (showOnlyEmpty.value) {
+    list = list.filter((session) => session.firstRequest === NO_REQUEST_TEXT);
+  } else if (!showEmpty.value) {
     list = list.filter((session) => session.firstRequest !== NO_REQUEST_TEXT);
+  }
+  const rawQuery = String(cwdFilter.value || '');
+  const query = rawQuery.trim().toLowerCase();
+  if (query) {
+    if (cwdFilterRegex.value) {
+      try {
+        const rx = new RegExp(rawQuery.trim(), 'i');
+        list = list.filter((session) => rx.test(session.cwd || ''));
+      } catch {
+        list = [];
+      }
+    } else {
+      list = list.filter((session) => (session.cwd || '').toLowerCase().includes(query));
+    }
   }
   return list;
 });
@@ -45,6 +72,8 @@ const groupOptions = [
 ];
 
 const GROUP_BY_STORAGE_KEY = 'codex.sessions.groupBy';
+const CWD_FILTER_STORAGE_KEY = 'codex.sessions.cwdFilter';
+const CWD_FILTER_REGEX_STORAGE_KEY = 'codex.sessions.cwdFilterRegex';
 const groupBy = ref('project');
 
 try {
@@ -56,11 +85,40 @@ try {
   console.warn('Failed to read groupBy from localStorage', err);
 }
 
+try {
+  const storedCwdFilter = localStorage.getItem(CWD_FILTER_STORAGE_KEY);
+  if (typeof storedCwdFilter === 'string') {
+    cwdFilter.value = storedCwdFilter;
+  }
+  const storedCwdRegex = localStorage.getItem(CWD_FILTER_REGEX_STORAGE_KEY);
+  if (storedCwdRegex === 'true' || storedCwdRegex === 'false') {
+    cwdFilterRegex.value = storedCwdRegex === 'true';
+  }
+} catch (err) {
+  console.warn('Failed to read cwd filter state from localStorage', err);
+}
+
 watch(groupBy, (value) => {
   try {
     localStorage.setItem(GROUP_BY_STORAGE_KEY, value);
   } catch (err) {
     console.warn('Failed to persist groupBy to localStorage', err);
+  }
+});
+
+watch(cwdFilter, (value) => {
+  try {
+    localStorage.setItem(CWD_FILTER_STORAGE_KEY, value || '');
+  } catch (err) {
+    console.warn('Failed to persist cwdFilter to localStorage', err);
+  }
+});
+
+watch(cwdFilterRegex, (value) => {
+  try {
+    localStorage.setItem(CWD_FILTER_REGEX_STORAGE_KEY, String(Boolean(value)));
+  } catch (err) {
+    console.warn('Failed to persist cwdFilterRegex to localStorage', err);
   }
 });
 
@@ -132,8 +190,6 @@ const refreshSessions = async () => {
 
 refreshSessions();
 
-const removeRoot = (import.meta.env.SESSIONS_ROOT_PATH || '').replace(/\/$/, '');
-
 const openSession = (session) => {
   dialogSession.value = session;
   dialogOpen.value = true;
@@ -162,14 +218,62 @@ const copyNewSession = async (session) => {
   }
 };
 
-const copyRemove = async (session) => {
-  const rel = (session.relativePath || session.fullPath || '').replace(/^\/+/, '');
-  const base = removeRoot ? `${removeRoot}/${rel}` : rel;
-  const cmd = `rm ${base}`;
+const copyCwd = async (session) => {
   try {
-    await navigator.clipboard.writeText(cmd);
+    await navigator.clipboard.writeText(session.cwd || '');
   } catch (err) {
     console.warn('Clipboard copy failed', err);
+  }
+};
+
+const deleteSession = async (session) => {
+  if (deletingSession.value) return;
+  const relPath = session?.relativePath || session?.fileName;
+  if (!relPath) return;
+
+  const shouldDelete = window.confirm(
+    `Delete session file "${relPath}"? This cannot be undone.`,
+  );
+  if (!shouldDelete) return;
+
+  deletingSession.value = true;
+  try {
+    const result = await deleteSessionFiles([relPath]);
+    if (!result?.ok || (result.failed || []).length) {
+      console.warn('Could not delete session file', result);
+      return;
+    }
+    await refreshSessions();
+  } finally {
+    deletingSession.value = false;
+  }
+};
+
+const clearEmptySessions = async () => {
+  if (!emptySessionsCount.value || clearingEmpty.value) return;
+  const shouldDelete = window.confirm(
+    `Delete ${emptySessionsCount.value} empty session files? This cannot be undone.`,
+  );
+  if (!shouldDelete) return;
+
+  const paths = Array.from(
+    new Set(
+      emptySessions.value
+        .map((session) => session.relativePath || session.fileName)
+        .filter(Boolean),
+    ),
+  );
+  if (!paths.length) return;
+
+  clearingEmpty.value = true;
+  try {
+    const result = await deleteSessionFiles(paths);
+    if (!result?.ok || (result.failed || []).length) {
+      console.warn('Some empty sessions could not be deleted', result);
+    }
+  } finally {
+    await refreshSessions();
+    clearingEmpty.value = false;
   }
 };
 </script>
@@ -181,8 +285,14 @@ const copyRemove = async (session) => {
         <SessionHeader
           v-model:group-by="groupBy"
           v-model:show-empty="showEmpty"
+          v-model:show-only-empty="showOnlyEmpty"
+          v-model:cwd-filter="cwdFilter"
+          v-model:cwd-filter-regex="cwdFilterRegex"
           :group-options="groupOptions"
           :sessions-count="sessions.length"
+          :empty-sessions-count="emptySessionsCount"
+          :clearing-empty="clearingEmpty"
+          @clear-empty="clearEmptySessions"
           @refresh="refreshSessions"
         />
 
@@ -221,7 +331,8 @@ const copyRemove = async (session) => {
                   :tone="projectTone(session.projectName)"
                   :format-date="formatDate"
                   @copy-resume="copyResume"
-                  @copy-remove="copyRemove"
+                  @delete-session="deleteSession"
+                  @copy-cwd="copyCwd"
                   @open="openSession"
                 />
               </v-col>

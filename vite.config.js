@@ -7,10 +7,12 @@ import path from 'path';
 const sessionsIndex = () => ({
   name: 'sessions-index',
   configureServer(server) {
+    const root = () =>
+      process.env.SESSIONS_ROOT_PATH ||
+      path.resolve(process.cwd(), 'sessions');
+
     server.middlewares.use('/__sessions_index', (req, res) => {
-      const root =
-        process.env.SESSIONS_ROOT_PATH ||
-        path.resolve(process.cwd(), 'sessions');
+      const baseRoot = root();
 
       const files = [];
       const walk = (dir, base) => {
@@ -31,10 +33,65 @@ const sessionsIndex = () => ({
         }
       };
 
-      walk(root, root);
+      walk(baseRoot, baseRoot);
 
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify(files));
+    });
+
+    server.middlewares.use('/__sessions_delete', (req, res) => {
+      if (req.method !== 'POST') {
+        res.statusCode = 405;
+        res.end(JSON.stringify({ ok: false, error: 'Method not allowed' }));
+        return;
+      }
+
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+
+      req.on('end', () => {
+        try {
+          const parsed = JSON.parse(body || '{}');
+          const inputPaths = Array.isArray(parsed.paths) ? parsed.paths : [];
+          const baseRoot = path.resolve(root());
+
+          const removed = [];
+          const failed = [];
+
+          for (const relPath of inputPaths) {
+            if (typeof relPath !== 'string' || !relPath.endsWith('.jsonl')) {
+              failed.push(relPath);
+              continue;
+            }
+
+            const target = path.resolve(baseRoot, relPath);
+            if (!target.startsWith(`${baseRoot}${path.sep}`) && target !== baseRoot) {
+              failed.push(relPath);
+              continue;
+            }
+
+            if (!fs.existsSync(target)) {
+              continue;
+            }
+
+            try {
+              fs.unlinkSync(target);
+              removed.push(relPath);
+            } catch {
+              failed.push(relPath);
+            }
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ ok: true, removed, failed }));
+        } catch {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ ok: false, error: 'Invalid JSON body' }));
+        }
+      });
     });
   },
 });

@@ -26,3 +26,28 @@ export const loadSessions = async () => {
   );
   return items.filter(Boolean);
 };
+
+export const deleteSessionFiles = async (paths) => {
+  try {
+    const res = await fetch('/__sessions_delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths }),
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        removed: [],
+        failed: [],
+      };
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to delete sessions', err);
+    return {
+      ok: false,
+      removed: [],
+      failed: paths || [],
+    };
+  }
+};
