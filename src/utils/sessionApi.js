@@ -51,3 +51,20 @@ export const deleteSessionFiles = async (paths) => {
     };
   }
 };
+
+export const relocateSessionFile = async (path, newWorkdir) => {
+  try {
+    const res = await fetch('/__sessions_relocate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path, newWorkdir }),
+    });
+    if (!res.ok) {
+      return { ok: false };
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to relocate session', err);
+    return { ok: false };
+  }
+};

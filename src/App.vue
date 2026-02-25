@@ -3,13 +3,14 @@ import { computed, ref, watch } from 'vue';
 import ChatDialog from './components/ChatDialog.vue';
 import SessionCard from './components/SessionCard.vue';
 import SessionHeader from './components/SessionHeader.vue';
-import { deleteSessionFiles, loadSessions } from './utils/sessionApi';
+import { deleteSessionFiles, loadSessions, relocateSessionFile } from './utils/sessionApi';
 import { NO_REQUEST_TEXT, formatDate, formatDuration, parseSessions } from './utils/sessionParsing';
 import { projectTone } from './utils/projectTone';
 
 const rawSessionFiles = ref([]);
 const clearingEmpty = ref(false);
 const deletingSession = ref(false);
+const relocatingSession = ref(false);
 
 const showEmpty = ref(false);
 const showOnlyEmpty = ref(false);
@@ -190,6 +191,8 @@ const refreshSessions = async () => {
 
 refreshSessions();
 
+const sessionsRoot = (import.meta.env.SESSIONS_ROOT_PATH || '').replace(/\/$/, '');
+
 const openSession = (session) => {
   dialogSession.value = session;
   dialogOpen.value = true;
@@ -226,6 +229,16 @@ const copyCwd = async (session) => {
   }
 };
 
+const copySessionFilePath = async (session) => {
+  const rel = String(session?.relativePath || session?.fileName || '').replace(/^\/+/, '');
+  const pathValue = sessionsRoot && rel ? `${sessionsRoot}/${rel}` : rel || session?.fullPath || '';
+  try {
+    await navigator.clipboard.writeText(pathValue);
+  } catch (err) {
+    console.warn('Clipboard copy failed', err);
+  }
+};
+
 const deleteSession = async (session) => {
   if (deletingSession.value) return;
   const relPath = session?.relativePath || session?.fileName;
@@ -246,6 +259,31 @@ const deleteSession = async (session) => {
     await refreshSessions();
   } finally {
     deletingSession.value = false;
+  }
+};
+
+const relocateSession = async (session) => {
+  if (relocatingSession.value) return;
+  const relPath = session?.relativePath || session?.fileName;
+  if (!relPath) return;
+
+  const current = String(session?.cwd || '');
+  const next = window.prompt('New workdir/cwd for this session file:', current);
+  if (next === null) return;
+
+  const newWorkdir = next.trim();
+  if (!newWorkdir || newWorkdir === current) return;
+
+  relocatingSession.value = true;
+  try {
+    const result = await relocateSessionFile(relPath, newWorkdir);
+    if (!result?.ok) {
+      console.warn('Could not relocate session workdir', result);
+      return;
+    }
+    await refreshSessions();
+  } finally {
+    relocatingSession.value = false;
   }
 };
 
@@ -332,7 +370,9 @@ const clearEmptySessions = async () => {
                   :format-date="formatDate"
                   @copy-resume="copyResume"
                   @delete-session="deleteSession"
+                  @relocate-session="relocateSession"
                   @copy-cwd="copyCwd"
+                  @copy-session-file="copySessionFilePath"
                   @open="openSession"
                 />
               </v-col>

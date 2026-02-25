@@ -14,12 +14,21 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['open', 'copy-resume', 'delete-session', 'copy-cwd']);
+const emit = defineEmits([
+  'open',
+  'copy-resume',
+  'delete-session',
+  'relocate-session',
+  'copy-cwd',
+  'copy-session-file',
+]);
 
 const handleOpen = () => emit('open', props.session);
 const handleCopyResume = () => emit('copy-resume', props.session);
 const handleDeleteSession = () => emit('delete-session', props.session);
+const handleRelocateSession = () => emit('relocate-session', props.session);
 const handleCopyCwd = () => emit('copy-cwd', props.session);
+const handleCopySessionFile = () => emit('copy-session-file', props.session);
 </script>
 
 <template>
@@ -88,6 +97,16 @@ const handleCopyCwd = () => emit('copy-cwd', props.session);
         >
           <v-icon size="16" icon="mdi-content-copy"></v-icon>
         </v-btn>
+        <v-btn
+          icon
+          size="x-small"
+          variant="text"
+          color="primary"
+          title="Copy session JSON path to clipboard"
+          @click="handleCopySessionFile"
+        >
+          <v-icon size="16" icon="mdi-file-document-outline"></v-icon>
+        </v-btn>
       </div>
     </v-card-item>
 
@@ -116,6 +135,17 @@ const handleCopyCwd = () => emit('copy-cwd', props.session);
         >
           <v-icon size="16" class="mr-1" icon="mdi-delete-outline"></v-icon>
           Delete
+        </v-btn>
+        <v-btn
+          color="secondary"
+          variant="flat"
+          size="small"
+          class="ml-2"
+          title="Relocate session workdir"
+          @click="handleRelocateSession"
+        >
+          <v-icon size="16" class="mr-1" icon="mdi-folder-swap-outline"></v-icon>
+          Relocate
         </v-btn>
         <v-spacer />
         <v-btn color="primary" variant="flat" size="small" @click="handleOpen">
